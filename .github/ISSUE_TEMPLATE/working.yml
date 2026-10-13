@@ -1,0 +1,21 @@
+name: Working
+description: A change from the test log works in game.
+title: "Working: "
+labels: ["working"]
+body:
+  - type: markdown
+    attributes:
+      value: Open this form from a change in the [test log](https://talesofnostalgia.github.io/aegis-parity-test-log/) so the change below is filled in.
+  - type: input
+    id: change
+    attributes:
+      label: Change
+      description: The number, commit and name from the test log.
+      placeholder: "#130 6629adc The player turns at once when clicking while walking"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: What you tested and what you saw. Screenshots help.

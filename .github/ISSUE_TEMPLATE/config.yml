@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Aegis Parity Test Log
+    url: https://talesofnostalgia.github.io/aegis-parity-test-log/
+    about: Pick a change to test there; its Post Working and Post Not working buttons open the right form.
