@@ -121,6 +121,8 @@ select { max-width: 100%; }
 .avatars img:first-child { margin-left: 0; }
 .count { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); font-size: 12px; }
 .count:hover { color: var(--accent); text-decoration: none; }
+.viewing { display: inline-flex; align-items: center; gap: 4px; color: var(--good); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.issue-sub .viewing { font-size: 14px; }
 .empty { color: var(--muted); padding: 32px 16px; text-align: center; margin: 0; }
 @media (max-width: 600px) {
 	.row { grid-template-columns: 16px minmax(0, 1fr); }
@@ -221,7 +223,7 @@ select { max-width: 100%; }
 		<div class="intro">
 			<h1 id="pageTitle">Aegis Parity Test Log</h1>
 			<p>Every change on the Tales of Nostalgia <code>aegis-stats-parity</code> server branch, in commit order. Each change makes the server behave like the official kRO Aegis server. Open a change, test it in game, then post <b>Working</b> or <b>Not working</b>. Every report is a GitHub issue, so everyone sees all the reports here.</p>
-			<p class="hint">The tests use GM commands such as <code>@item</code> and <code>@str</code>, so you need a GM account on the test server. Posting a report needs a free GitHub account.</p>
+			<p class="hint">The tests use GM commands such as <code>@item</code> and <code>@str</code>, so you need a GM account on the test server. Posting a report needs a free GitHub account. A green eye on a change means someone has it open right now; for this the page shares only an anonymous browser ID and the number of the change you have open.</p>
 			<div class="meta" id="meta"></div>
 		</div>
 		<div class="flash" id="oldMarks" hidden>
@@ -279,6 +281,7 @@ select { max-width: 100%; }
 		left: '<path d="M9.75 3.5L5.25 8l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
 		right: '<path d="M6.25 3.5l4.5 4.5-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
 		external: '<path d="M9.5 2.75h3.75V6.5M13 3L7.5 8.5M11.5 9.5v3c0 .41-.34.75-.75.75h-7a.75.75 0 0 1-.75-.75v-7c0-.41.34-.75.75-.75h3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>',
+		eye: '<path d="M1.25 8S3.75 3.25 8 3.25 14.75 8 14.75 8 12.25 12.75 8 12.75 1.25 8 1.25 8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="8" cy="8" r="2.1" fill="currentColor"/>',
 	};
 
 	let drafts = {};          // hash -> {status, note}
@@ -527,7 +530,8 @@ select { max-width: 100%; }
 			meta.append(` · last report ${ago(last.created)} by ${last.user.login}`);
 		}
 		const people = testers(c);
-		const side = el('div', { class: 'row-side' });
+		const pv = el('span', { class: 'viewing', hidden: '' });
+		const side = el('div', { class: 'row-side' }, pv);
 		if (people.length) {
 			const av = el('span', { class: 'avatars', title: people.map((u) => u.login).join(', ') });
 			for (const u of people.slice(0, 3)) av.append(avatarImg(u, 20));
@@ -535,7 +539,7 @@ select { max-width: 100%; }
 		}
 		if (rs.length) side.append(el('a', { class: 'count', href: '#' + c.n, 'aria-label': `${rs.length} ${rs.length === 1 ? 'report' : 'reports'}` }, icon('comment'), String(rs.length)));
 		const li = el('li', { class: 'row' }, el('span', { class: 'state ' + st, title: STATE_NAME[st] }, icon(st)), el('div', {}, line, meta), side);
-		rows.set(c.hash, { li, st, hay: [c.title, c.subject, c.hash, c.change, c.expected, c.category, ...(c.steps || []), ...people.map((u) => u.login)].join(' ').toLowerCase() });
+		rows.set(c.hash, { li, st, pv, hay:[c.title, c.subject, c.hash, c.change, c.expected, c.category, ...(c.steps || []), ...people.map((u) => u.login)].join(' ').toLowerCase() });
 		return li;
 	}
 
@@ -552,6 +556,7 @@ select { max-width: 100%; }
 				el('a', { href: `https://github.com/${REPO}/issues`, target: '_blank', rel: 'noopener' }, 'See them on GitHub'));
 		}
 		paint();
+		paintViewers();
 	}
 
 	function paint() {
@@ -641,7 +646,8 @@ select { max-width: 100%; }
 		const st = statusOf(c);
 		const rs = reports.get(c.hash) || [];
 		return [el('span', { class: 'pill ' + st }, icon(st), STATE_NAME[st]),
-			el('span', {}, el('code', { text: c.hash }), ` ${c.subject} · ${rs.length} ${rs.length === 1 ? 'report' : 'reports'}`)];
+			el('span', {}, el('code', { text: c.hash }), ` ${c.subject} · ${rs.length} ${rs.length === 1 ? 'report' : 'reports'}`),
+			el('span', { class: 'viewing', id: 'issueViewers', hidden: '' })];
 	}
 
 	function changeCard(c) {
@@ -749,6 +755,7 @@ select { max-width: 100%; }
 		return [
 			el('div', { class: 'side-sec' }, el('h2', { text: 'Status' }), el('span', { class: 'status ' + st }, icon(st), STATE_NAME[st]),
 				el('div', {}, `${t.good} working · ${t.bad} not working · ${t.fixed} fixed`)),
+			el('div', { class: 'side-sec' }, el('h2', { text: 'Viewing now' }), el('div', { id: 'sideViewers' })),
 			el('div', { class: 'side-sec' }, el('h2', { text: 'Testers' }), people),
 			el('div', { class: 'side-sec' }, el('h2', { text: 'Category' }), label(c.category, 'cat'), !c.testable && label('code only', 'code')),
 			el('div', { class: 'side-sec' }, el('h2', { text: 'Commit' }), el('code', { text: c.hash }), el('div', { text: c.subject })),
@@ -783,6 +790,7 @@ select { max-width: 100%; }
 	function renderAll() {
 		renderRows();
 		if (current && !$('detailView').hidden) renderDetail(current, true);
+		paintViewers();
 	}
 
 	/* ---- Routing: #130 opens change #130 ---- */
@@ -805,7 +813,230 @@ select { max-width: 100%; }
 			document.title = 'Aegis Parity Test Log';
 			if (!inList) window.scrollTo(0, listScroll);
 		}
+		liveSay();
+		paintViewers();
 	}
+
+	/* ---- Live viewers: who has a change open right now ----
+	   Every open page keeps one retained message on a public MQTT broker: an anonymous browser ID and the number of the
+	   change it shows (0 for the list). The broker removes it when the page closes or loses its connection (the will
+	   message), and pages send it again every minute, so a page that stops sending is dropped after a few minutes. */
+	const LIVE_URL = 'wss://broker.emqx.io:8084/mqtt';
+	const LIVE_ROOT = 'talesofnostalgia/aegis-parity-test-log/viewers/v1/';
+	const LIVE_BEAT = 60 * 1000;
+	const LIVE_STALE = 4 * 60 * 1000;
+	const randomHex = (bytes) => [...crypto.getRandomValues(new Uint8Array(bytes))].map((x) => x.toString(16).padStart(2, '0')).join('');
+	const pageId = 'ton' + randomHex(10);   // this page's MQTT client ID and topic (23 characters)
+	let browserId = pageId;                  // one ID per browser, so two tabs of one person count once
+	try {
+		browserId = localStorage.getItem('aegis-parity-viewer') || '';
+		if (!/^[0-9a-f]{16}$/.test(browserId)) {
+			browserId = randomHex(8);
+			localStorage.setItem('aegis-parity-viewer', browserId);
+		}
+	} catch (e) { browserId = pageId; }
+	const viewers = new Map();   // page ID -> { b: browser ID, c: change number, seen: time }
+	let live = 'connecting';     // 'on' once the broker answers, 'off' while it cannot be reached
+	let liveClient = null;
+	let paintQueued = false;
+
+	/* A minimal MQTT 3.1.1 client over WebSocket: QoS 0 publish and subscribe, a retained empty will, keep-alive and reconnect. */
+	function mqttClient(url, id, willTopic, on) {
+		const enc = new TextEncoder();
+		const dec = new TextDecoder();
+		const str = (s) => {
+			const b = enc.encode(s);
+			return [b.length >> 8, b.length & 255, ...b];
+		};
+		const packet = (head, body) => {
+			const len = [];
+			let n = body.length;
+			do {
+				let d = n % 128;
+				n = Math.floor(n / 128);
+				if (n > 0) d |= 128;
+				len.push(d);
+			} while (n > 0);
+			return new Uint8Array([head, ...len, ...body]);
+		};
+		let ws = null;
+		let buf = new Uint8Array(0);
+		let ready = false;
+		let ended = false;
+		let tries = 0;
+		let ping = 0;
+		let again = 0;
+		const send = (bytes) => {
+			if (ready && ws.readyState === WebSocket.OPEN) ws.send(bytes);
+		};
+		function read(e) {
+			const add = new Uint8Array(e.data);
+			const next = new Uint8Array(buf.length + add.length);
+			next.set(buf);
+			next.set(add, buf.length);
+			buf = next;
+			for (;;) {
+				let i = 1;
+				let len = 0;
+				let mul = 1;
+				let d = 0;
+				do {
+					if (i >= buf.length) return;
+					d = buf[i++];
+					len += (d & 127) * mul;
+					mul *= 128;
+				} while ((d & 128) !== 0 && i < 5);
+				if (buf.length < i + len) return;
+				const head = buf[0];
+				const body = buf.slice(i, i + len);
+				buf = buf.slice(i + len);
+				if (head >> 4 === 2) {           // CONNACK
+					if (body[1] !== 0) {
+						ws.close();
+						return;
+					}
+					ready = true;
+					tries = 0;
+					on.connect();
+				} else if (head >> 4 === 3) {    // PUBLISH
+					const tl = (body[0] << 8) | body[1];
+					const off = 2 + tl + (((head >> 1) & 3) !== 0 ? 2 : 0);
+					on.message(dec.decode(body.subarray(2, 2 + tl)), dec.decode(body.subarray(off)));
+				}
+			}
+		}
+		function retry() {
+			const wait = Math.min(60, 2 ** tries++) * 1000 * (0.75 + Math.random() / 2);
+			clearTimeout(again);
+			again = setTimeout(open, wait);
+		}
+		function open() {
+			ready = false;
+			buf = new Uint8Array(0);
+			try {
+				ws = new WebSocket(url, 'mqtt');
+			} catch (e) {
+				retry();
+				return;
+			}
+			ws.binaryType = 'arraybuffer';
+			ws.onopen = () => ws.send(packet(0x10, [...str('MQTT'), 4, 0x26, 0, 120, ...str(id), ...str(willTopic), 0, 0]));
+			ws.onmessage = read;
+			ws.onclose = () => {
+				ready = false;
+				clearInterval(ping);
+				on.lost();
+				if (!ended) retry();
+			};
+			clearInterval(ping);
+			ping = setInterval(() => send(new Uint8Array([0xc0, 0])), 50 * 1000);
+		}
+		open();
+		return {
+			publish: (topic, text, retain) => send(packet(retain ? 0x31 : 0x30, [...str(topic), ...enc.encode(text)])),
+			subscribe: (filter) => send(packet(0x82, [0, 1, ...str(filter), 0])),
+			end: () => {
+				ended = true;
+				clearTimeout(again);
+				clearInterval(ping);
+				send(new Uint8Array([0xe0, 0]));
+				if (ws) ws.close();
+			},
+		};
+	}
+
+	function liveSay() {
+		if (live !== 'on') return;
+		liveClient.publish(LIVE_ROOT + pageId, JSON.stringify({ b: browserId, c: current ? current.n : 0 }), true);
+	}
+	function liveHeard(topic, text) {
+		if (!topic.startsWith(LIVE_ROOT)) return;
+		const id = topic.slice(LIVE_ROOT.length);
+		if (id === pageId) return;
+		let v = null;
+		try { v = text ? JSON.parse(text) : null; } catch (e) { v = null; }
+		const valid = v && typeof v.b === 'string' && v.b.length <= 64 && Number.isInteger(v.c) && (v.c === 0 || byN.has(String(v.c)));
+		if (!valid) viewers.delete(id);
+		else if (viewers.size < 1000 || viewers.has(id)) viewers.set(id, { b: v.b, c: v.c, seen: Date.now() });
+		if (!paintQueued) {
+			paintQueued = true;
+			setTimeout(() => {
+				paintQueued = false;
+				paintViewers();
+			}, 100);
+		}
+	}
+	function startLive() {
+		live = 'connecting';
+		liveClient = mqttClient(LIVE_URL, pageId, LIVE_ROOT + pageId, {
+			connect: () => {
+				live = 'on';
+				liveClient.subscribe(LIVE_ROOT + '+');
+				liveSay();
+				paintViewers();
+			},
+			lost: () => {
+				live = 'off';
+				viewers.clear();
+				paintViewers();
+			},
+			message: liveHeard,
+		});
+	}
+	function stopLive() {
+		if (!liveClient) return;
+		if (live === 'on') liveClient.publish(LIVE_ROOT + pageId, '', true);
+		liveClient.end();
+		liveClient = null;
+		live = 'off';
+	}
+
+	/* Other people (not this browser) with each change open. */
+	function watchers() {
+		const people = new Map();
+		for (const v of viewers.values()) {
+			if (v.b === browserId || v.c === 0) continue;
+			if (!people.has(v.c)) people.set(v.c, new Set());
+			people.get(v.c).add(v.b);
+		}
+		return people;
+	}
+	function viewerBadge(node, n, text) {
+		const tip = n === 1 ? '1 person is viewing this change now' : `${n} people are viewing this change now`;
+		node.hidden = n === 0;
+		node.title = n ? tip : '';
+		if (n) node.setAttribute('aria-label', tip);
+		else node.removeAttribute('aria-label');
+		node.replaceChildren(icon('eye'), text);
+	}
+	function paintViewers() {
+		const people = watchers();
+		const count = (c) => (people.get(c.n) || new Set()).size;
+		for (const c of CASES) {
+			const r = rows.get(c.hash);
+			if (r) viewerBadge(r.pv, count(c), String(count(c)));
+		}
+		const sub = $('issueViewers');
+		const side = $('sideViewers');
+		if (!current || !sub || !side) return;
+		const n = count(current);
+		viewerBadge(sub, n, n === 1 ? '1 other viewing now' : `${n} others viewing now`);
+		if (live === 'off') side.textContent = 'Live viewers are not available right now.';
+		else if (live === 'connecting') side.textContent = 'Connecting…';
+		else side.textContent = n === 0 ? 'Only you' : `You and ${n} ${n === 1 ? 'other person' : 'other people'}`;
+	}
+	setInterval(() => {
+		const old = Date.now() - LIVE_STALE;
+		for (const [id, v] of viewers) {
+			if (v.seen < old) viewers.delete(id);
+		}
+		liveSay();
+		paintViewers();
+	}, LIVE_BEAT);
+	window.addEventListener('pagehide', stopLive);
+	window.addEventListener('pageshow', (e) => {
+		if (e.persisted && !liveClient) startLive();
+	});
 
 	/* ---- Marks from the earlier checklist ---- */
 	function oldMarks() {
@@ -854,6 +1085,7 @@ select { max-width: 100%; }
 	renderRows();
 	route();
 	sync(false);
+	startLive();
 })();
 </script>
 </body>
